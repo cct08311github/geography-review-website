@@ -533,4 +533,13 @@ export const expandedGeographyQuizzes = [
       {
         id: '2-15',
         type: 'matching',
-        question: '請將下列氣候類型與地區
+        question: '請將下列氣候類型與正確的地區配對',
+        options: ['熱帶季風氣候', '亞熱帶季風氣候', '溫帶季風氣候', '高地氣候'],
+        pairs: ['台灣北部', '台灣南部', '中央山脈', '恆春半島'],
+        correctAnswer: [1, 0, 3, 2],
+        explanation: '台灣北部為亞熱帶季風氣候，南部為熱帶季風氣候，恆春半島為熱帶季風氣候，高山為高地氣候。',
+        points: 4
+      }
+    ]
+  }
+]
