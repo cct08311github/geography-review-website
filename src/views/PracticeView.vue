@@ -459,7 +459,17 @@ const getTopicName = (topicId) => {
 const startQuiz = (quiz) => {
   currentQuiz.value = { ...quiz }
   currentQuestionIndex.value = 0
-  userAnswers.value = new Array(quiz.questionsCount).fill(null)
+  
+  // 初始化答案數組，對於 matching 題型初始化為空數組
+  userAnswers.value = new Array(quiz.questionsCount).fill(null).map((_, index) => {
+    const question = quiz.questions[index]
+    if (question.type === 'matching' && question.leftItems) {
+      // 對於 matching 題型，初始化為與 leftItems 相同長度的數組，填充 null
+      return new Array(question.leftItems.length).fill(null)
+    }
+    return null
+  })
+  
   quizCompleted.value = false
   quizResults.value = []
   finalScore.value = 0
@@ -537,9 +547,16 @@ const submitQuiz = () => {
         }
         break
       case 'matching':
-        // 簡化：檢查所有配對是否正確
-        if (Array.isArray(userAnswer) && Array.isArray(correctAnswer)) {
-          correct = JSON.stringify(userAnswer) === JSON.stringify(correctAnswer)
+        // 檢查配對題答案
+        if (Array.isArray(userAnswer) && Array.isArray(question.correctPairs)) {
+          // 將用戶答案轉換為配對格式
+          const userPairs = userAnswer.map((rightIndex, leftIndex) => [leftIndex, rightIndex])
+          // 將正確答案轉換為可比較的格式
+          const correctPairs = question.correctPairs
+          // 排序後比較
+          const userSorted = [...userPairs].sort((a, b) => a[0] - b[0] || a[1] - b[1])
+          const correctSorted = [...correctPairs].sort((a, b) => a[0] - b[0] || a[1] - b[1])
+          correct = JSON.stringify(userSorted) === JSON.stringify(correctSorted)
         }
         break
     }
@@ -548,10 +565,16 @@ const submitQuiz = () => {
     points = correct ? question.points : 0
     totalScore += points
     
+    // 對於 matching 題型，需要特殊處理正確答案的格式
+    let displayCorrectAnswer = correctAnswer
+    if (question.type === 'matching' && question.correctPairs) {
+      displayCorrectAnswer = question.correctPairs
+    }
+    
     results.push({
       question,
       userAnswer,
-      correctAnswer,
+      correctAnswer: displayCorrectAnswer,
       correct,
       points
     })
@@ -582,8 +605,24 @@ const formatAnswer = (answer, question) => {
     case 'true-false':
       return answer ? '正確' : '錯誤'
     case 'matching':
+      // 處理 matching 題型的答案顯示
       if (Array.isArray(answer)) {
-        return answer.join(', ') || '無效答案'
+        // 如果是 correctPairs 格式（[[0,1], [1,2], ...]）
+        if (answer.length > 0 && Array.isArray(answer[0])) {
+          // 這是 correctPairs 格式
+          return answer.map(([leftIndex, rightIndex]) => {
+            const leftItem = question.leftItems[leftIndex] || `項目${leftIndex}`
+            const rightItem = question.rightItems[rightIndex] || `選項${rightIndex}`
+            return `${leftItem} → ${rightItem}`
+          }).join('; ')
+        } else {
+          // 這是用戶答案格式（[1, 2, 3, 0]）
+          return answer.map((rightIndex, leftIndex) => {
+            const leftItem = question.leftItems[leftIndex] || `項目${leftIndex}`
+            const rightItem = question.rightItems[rightIndex] || `選項${rightIndex}`
+            return `${leftItem} → ${rightItem}`
+          }).join('; ')
+        }
       }
       return '無效答案'
     default:
