@@ -1,0 +1,24 @@
+{
+  "name": "geography-review-website",
+  "version": "1.0.0",
+  "description": "國中地理會考複習網站 - 24小時緊急交付",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && gh-pages -d dist"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.0",
+    "pinia": "^2.1.0",
+    "vuetify": "^3.5.0",
+    "@mdi/font": "^7.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vite": "^5.0.0",
+    "gh-pages": "^6.0.0"
+  }
+}
