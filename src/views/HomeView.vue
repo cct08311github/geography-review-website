@@ -90,6 +90,80 @@
       </v-col>
     </v-row>
 
+    <!-- 新功能介紹 -->
+    <v-row class="mb-6">
+      <v-col cols="12">
+        <v-card class="pa-4" color="purple-lighten-5">
+          <v-card-title class="text-h5">
+            <v-icon color="purple" class="mr-2">mdi-rocket-launch</v-icon>
+            🚀 全新功能上線！
+          </v-card-title>
+          <v-card-text>
+            <p class="text-body-1 mb-4">
+              我們新增了完整的國中會考複習系統，包含5大科目、模擬考試和錯題本功能！
+            </p>
+            
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-card class="pa-3 mb-3" hover @click="$router.push({ name: 'new-practice' })">
+                  <div class="d-flex align-center">
+                    <v-icon color="green" class="mr-3">mdi-clipboard-check</v-icon>
+                    <div>
+                      <div class="text-h6">模擬正式考試</div>
+                      <div class="text-caption">正式題數與時間，真實考試體驗</div>
+                    </div>
+                  </div>
+                </v-card>
+              </v-col>
+              
+              <v-col cols="12" md="6">
+                <v-card class="pa-3 mb-3" hover @click="$router.push({ name: 'new-practice' })">
+                  <div class="d-flex align-center">
+                    <v-icon color="blue" class="mr-3">mdi-book-multiple</v-icon>
+                    <div>
+                      <div class="text-h6">5大科目完整題庫</div>
+                      <div class="text-caption">國文、英語、數學、自然、社會</div>
+                    </div>
+                  </div>
+                </v-card>
+              </v-col>
+              
+              <v-col cols="12" md="6">
+                <v-card class="pa-3 mb-3" hover @click="$router.push({ name: 'new-practice' })">
+                  <div class="d-flex align-center">
+                    <v-icon color="orange" class="mr-3">mdi-notebook</v-icon>
+                    <div>
+                      <div class="text-h6">智能錯題本</div>
+                      <div class="text-caption">自動記錄錯題，針對性複習</div>
+                    </div>
+                  </div>
+                </v-card>
+              </v-col>
+              
+              <v-col cols="12" md="6">
+                <v-card class="pa-3 mb-3" hover @click="$router.push({ name: 'new-practice' })">
+                  <div class="d-flex align-center">
+                    <v-icon color="red" class="mr-3">mdi-shuffle</v-icon>
+                    <div>
+                      <div class="text-h6">題目隨機變化</div>
+                      <div class="text-caption">每次練習都不一樣，避免死記硬背</div>
+                    </div>
+                  </div>
+                </v-card>
+              </v-col>
+            </v-row>
+            
+            <div class="text-center mt-4">
+              <v-btn color="purple" size="large" @click="$router.push({ name: 'new-practice' })">
+                <v-icon left>mdi-rocket</v-icon>
+                體驗全新複習系統
+              </v-btn>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
     <v-row>
       <v-col cols="12">
         <v-card class="pa-4">

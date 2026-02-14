@@ -25,6 +25,28 @@ const routes = [
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue')
+  },
+  // 新功能路由
+  {
+    path: '/new-practice',
+    name: 'new-practice',
+    component: () => import('../views/NewPracticeView.vue')
+  },
+  {
+    path: '/subject-practice/:subjectId',
+    name: 'subject-practice',
+    component: () => import('../views/SubjectPracticeView.vue'),
+    props: true
+  },
+  {
+    path: '/exam-taking',
+    name: 'exam-taking',
+    component: () => import('../views/ExamTakingView.vue')
+  },
+  {
+    path: '/wrong-answers',
+    name: 'wrong-answers',
+    component: () => import('../views/WrongAnswerReviewView.vue')
   }
 ]
 

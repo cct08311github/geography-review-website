@@ -1,0 +1,132 @@
+// 國中會考科目定義
+// 5大科目：國文、英語、數學、自然、社會
+
+export const subjects = [
+  {
+    id: 1,
+    name: '國文',
+    code: 'chinese',
+    description: '國語文能力測驗',
+    color: '#4CAF50',
+    icon: 'mdi-book-open-variant',
+    topics: [
+      { id: 1, name: '字音字形', description: '注音、字形辨識' },
+      { id: 2, name: '詞語成語', description: '詞義、成語運用' },
+      { id: 3, name: '文法修辭', description: '句型、修辭技巧' },
+      { id: 4, name: '閱讀理解', description: '文言文、白話文閱讀' },
+      { id: 5, name: '寫作技巧', description: '作文結構、表達' }
+    ]
+  },
+  {
+    id: 2,
+    name: '英語',
+    code: 'english',
+    description: '英語能力測驗',
+    color: '#2196F3',
+    icon: 'mdi-translate',
+    topics: [
+      { id: 1, name: '聽力', description: '對話理解、短文聽解' },
+      { id: 2, name: '閱讀', description: '單字、文法、閱讀理解' },
+      { id: 3, name: '寫作', description: '句子重組、短文寫作' },
+      { id: 4, name: '口說', description: '發音、對話練習' }
+    ]
+  },
+  {
+    id: 3,
+    name: '數學',
+    code: 'math',
+    description: '數學能力測驗',
+    color: '#FF9800',
+    icon: 'mdi-calculator',
+    topics: [
+      { id: 1, name: '數與量', description: '整數、分數、小數' },
+      { id: 2, name: '代數', description: '方程式、函數' },
+      { id: 3, name: '幾何', description: '圖形、空間、測量' },
+      { id: 4, name: '統計與機率', description: '數據分析、機率' }
+    ]
+  },
+  {
+    id: 4,
+    name: '自然',
+    code: 'science',
+    description: '自然科學測驗',
+    color: '#9C27B0',
+    icon: 'mdi-flask',
+    topics: [
+      { id: 1, name: '物理', description: '力學、光學、熱學' },
+      { id: 2, name: '化學', description: '物質、反應、能量' },
+      { id: 3, name: '生物', description: '細胞、生態、人體' },
+      { id: 4, name: '地球科學', description: '地質、天文、氣象' }
+    ]
+  },
+  {
+    id: 5,
+    name: '社會',
+    code: 'social',
+    description: '社會科測驗',
+    color: '#F44336',
+    icon: 'mdi-earth',
+    topics: [
+      { id: 1, name: '地理', description: '台灣地理、世界地理' },
+      { id: 2, name: '歷史', description: '台灣史、中國史、世界史' },
+      { id: 3, name: '公民', description: '政治、法律、經濟' }
+    ]
+  }
+]
+
+// 獲取所有科目
+export function getAllSubjects() {
+  return subjects
+}
+
+// 根據ID獲取科目
+export function getSubjectById(id) {
+  return subjects.find(subject => subject.id === id)
+}
+
+// 根據代碼獲取科目
+export function getSubjectByCode(code) {
+  return subjects.find(subject => subject.code === code)
+}
+
+// 獲取科目主題
+export function getSubjectTopics(subjectId) {
+  const subject = getSubjectById(subjectId)
+  return subject ? subject.topics : []
+}
+
+// 考試配置
+export const examConfig = {
+  // 正式會考配置
+  formal: {
+    chinese: { questions: 45, time: 70, points: 100 }, // 國文45題70分鐘
+    english: { questions: 40, time: 60, points: 100 }, // 英語40題60分鐘
+    math: { questions: 25, time: 80, points: 100 },    // 數學25題80分鐘
+    science: { questions: 50, time: 70, points: 100 }, // 自然50題70分鐘
+    social: { questions: 60, time: 70, points: 100 }   // 社會60題70分鐘
+  },
+  // 模擬考試配置
+  practice: {
+    chinese: { questions: 20, time: 35, points: 100 },
+    english: { questions: 20, time: 30, points: 100 },
+    math: { questions: 15, time: 40, points: 100 },
+    science: { questions: 25, time: 35, points: 100 },
+    social: { questions: 30, time: 35, points: 100 }
+  },
+  // 快速練習配置
+  quick: {
+    chinese: { questions: 10, time: 15, points: 100 },
+    english: { questions: 10, time: 15, points: 100 },
+    math: { questions: 10, time: 20, points: 100 },
+    science: { questions: 10, time: 15, points: 100 },
+    social: { questions: 10, time: 15, points: 100 }
+  }
+}
+
+// 獲取考試配置
+export function getExamConfig(mode, subjectCode) {
+  if (examConfig[mode] && examConfig[mode][subjectCode]) {
+    return examConfig[mode][subjectCode]
+  }
+  return { questions: 10, time: 30, points: 100 } // 默認配置
+}
