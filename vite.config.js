@@ -4,7 +4,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [vue()],
-  base: '/geography-review-website/',
+  base: process.env.NODE_ENV === 'production' ? '/geography-review-website/' : '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets'
