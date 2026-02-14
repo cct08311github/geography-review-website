@@ -260,6 +260,8 @@ onMounted(() => {
 
 // 方法
 const selectSubject = (subject) => {
+  console.log('Selecting subject:', subject)
+  console.log('Subject id:', subject.id, 'Type:', typeof subject.id)
   // 所有科目都跳轉到科目練習頁面
   router.push({
     name: 'subject-practice',

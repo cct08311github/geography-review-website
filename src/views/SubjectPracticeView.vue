@@ -206,9 +206,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getSubjectById } from '@/data/subjects'
+import { getSubjectById, getAllSubjects } from '@/data/subjects'
 
 const props = defineProps({
   subjectId: {
@@ -219,9 +219,23 @@ const props = defineProps({
 
 const router = useRouter()
 
+// 調試：檢查傳入的參數
+onMounted(() => {
+  console.log('SubjectPracticeView mounted')
+  console.log('props.subjectId:', props.subjectId)
+  console.log('props.subjectId type:', typeof props.subjectId)
+  console.log('Number(props.subjectId):', Number(props.subjectId))
+  console.log('Available subjects:', getAllSubjects())
+})
+
 // 計算屬性
 const subject = computed(() => {
-  return getSubjectById(props.subjectId)
+  // 確保 subjectId 是數字類型
+  const subjectId = Number(props.subjectId)
+  console.log('Looking for subject with id:', subjectId)
+  const foundSubject = getSubjectById(subjectId)
+  console.log('Found subject:', foundSubject)
+  return foundSubject
 })
 
 const subjectName = computed(() => {
