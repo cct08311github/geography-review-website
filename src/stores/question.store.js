@@ -52,18 +52,43 @@ export const useQuestionStore = defineStore('question', () => {
           break
         case 5: // 社會
           // 使用真實的地理題庫
-          questions = [...geographyQuizzes, ...expandedGeographyQuizzes].map((q, idx) => ({
-            id: idx + 1,
-            subjectId: 5,
-            topicId: q.topicId || 1,
-            type: q.type || 'single',
-            question: q.question,
-            options: q.options,
-            answer: q.correctAnswer !== undefined ? q.correctAnswer : (Array.isArray(q.correctAnswers) ? q.correctAnswers[0] : 0),
-            explanation: q.explanation || q.explanationText || '請參考相關教材',
-            difficulty: q.difficulty || 'medium',
-            tags: q.tags || []
-          }))
+          questions = []
+          
+          // 處理 geographyQuizzes（包含嵌套的questions數組）
+          geographyQuizzes.forEach(quiz => {
+            if (quiz.questions && Array.isArray(quiz.questions)) {
+              quiz.questions.forEach((q, qIdx) => {
+                questions.push({
+                  id: questions.length + 1,
+                  subjectId: 5,
+                  topicId: quiz.topicId || 1,
+                  type: q.type || 'single',
+                  question: q.question,
+                  options: q.options || [],
+                  answer: q.correctAnswer !== undefined ? q.correctAnswer : (Array.isArray(q.correctAnswers) ? q.correctAnswers[0] : 0),
+                  explanation: q.explanation || '請參考相關教材',
+                  difficulty: quiz.difficulty || 'medium',
+                  tags: quiz.tags || []
+                })
+              })
+            }
+          })
+          
+          // 處理 expandedGeographyQuizzes（已經是扁平結構）
+          expandedGeographyQuizzes.forEach((q, idx) => {
+            questions.push({
+              id: questions.length + 1,
+              subjectId: 5,
+              topicId: q.topicId || 1,
+              type: q.type || 'single',
+              question: q.question,
+              options: q.options || [],
+              answer: q.correctAnswer !== undefined ? q.correctAnswer : (Array.isArray(q.correctAnswers) ? q.correctAnswers[0] : 0),
+              explanation: q.explanation || '請參考相關教材',
+              difficulty: q.difficulty || 'medium',
+              tags: q.tags || []
+            })
+          })
           break
         default:
           questions = generateMockQuestions(subjectId, 'default')
