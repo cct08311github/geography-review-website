@@ -6,10 +6,10 @@
         <v-card color="primary" dark class="pa-4 rounded-lg">
           <v-card-title class="text-h4 font-weight-bold">
             <v-icon large left>mdi-school</v-icon>
-            國中會考複習系統
+            國中會考總複習系統
           </v-card-title>
           <v-card-subtitle class="text-h6 mt-2">
-            5大科目完整題庫 + 模擬考試 + 錯題本功能
+            5大科目總複習 + 模擬會考 + 智能錯題本
           </v-card-subtitle>
         </v-card>
       </v-col>

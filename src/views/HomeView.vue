@@ -4,14 +4,14 @@
       <v-col cols="12" md="10" lg="8">
         <v-card class="pa-6" color="primary" dark>
           <v-card-title class="text-h4 text-center">
-            🗺️ 歡迎來到地理會考複習網站！
+            🎯 歡迎來到國中會考總複習系統！
           </v-card-title>
           <v-card-subtitle class="text-h6 text-center">
-            專為15歲國三學生設計的台灣地理重點複習
+            專為國三學生設計的5大科目完整複習平台
           </v-card-subtitle>
           <v-card-text class="text-center">
             <p class="text-body-1">
-              這裡整理了近5年國中地理會考重點知識，幫助你高效複習、輕鬆應考！
+              整合國文、英語、數學、自然、社會5大科目，提供模擬考試、智能錯題本、題目隨機化等完整複習功能！
             </p>
           </v-card-text>
         </v-card>
@@ -100,7 +100,7 @@
           </v-card-title>
           <v-card-text>
             <p class="text-body-1 mb-4">
-              我們新增了完整的國中會考複習系統，包含5大科目、模擬考試和錯題本功能！
+              國中會考總複習系統提供完整的5大科目複習方案，包含模擬會考、智能錯題本、題目隨機化等先進功能！
             </p>
             
             <v-row>
@@ -156,7 +156,7 @@
             <div class="text-center mt-4">
               <v-btn color="purple" size="large" @click="$router.push({ name: 'new-practice' })">
                 <v-icon left>mdi-rocket</v-icon>
-                體驗全新複習系統
+                進入總複習系統
               </v-btn>
             </div>
           </v-card-text>
@@ -173,16 +173,16 @@
           </v-card-title>
           <v-card-text>
             <v-alert type="info" class="mb-4">
-              <strong>📚 每日30分鐘：</strong> 每天花30分鐘複習一個主題，效果比週末一次複習3小時更好！
+              <strong>📚 系統化複習：</strong> 使用總複習系統按科目、主題逐步複習，建立完整的知識體系！
             </v-alert>
             <v-alert type="success" class="mb-4">
-              <strong>🗺️ 地圖記憶法：</strong> 台灣地理要記住「一府二鹿三艋舺」，從北到南的重要城市位置。
+              <strong>🎯 模擬會考訓練：</strong> 定期進行模擬考試，熟悉正式會考的題數、時間和壓力環境。
             </v-alert>
             <v-alert type="warning" class="mb-4">
-              <strong>⏰ 考試時間分配：</strong> 會考地理50分鐘，建議選擇題30分鐘、非選擇題20分鐘。
+              <strong>📊 智能錯題分析：</strong> 系統自動記錄錯題，分析弱點科目和主題，提供針對性複習建議。
             </v-alert>
             <v-alert type="info">
-              <strong>📝 錯題本：</strong> 把做錯的題目記錄下來，考前重點複習這些題目。
+              <strong>🔄 題目隨機化：</strong> 每次練習題目和選項順序都不同，避免死記硬背，真正掌握知識點。
             </v-alert>
           </v-card-text>
         </v-card>

@@ -1,7 +1,7 @@
 {
-  "name": "geography-review-website",
-  "version": "1.0.0",
-  "description": "國中地理會考複習網站 - 24小時緊急交付",
+  "name": "junior-high-exam-review-system",
+  "version": "2.0.0",
+  "description": "國中會考總複習系統 - 5大科目完整複習平台",
   "private": true,
   "scripts": {
     "dev": "vite",
