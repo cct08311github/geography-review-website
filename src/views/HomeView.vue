@@ -238,6 +238,13 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- 版本資訊 -->
+    <v-footer class="bg-transparent mt-8 text-center d-flex flex-column text-caption text-grey">
+      <div>國中會考總複習系統 v{{ appVersion }}</div>
+      <div>最後更新: {{ buildTime }}</div>
+      <div>&copy; 2026 Geography Review System. All rights reserved.</div>
+    </v-footer>
   </v-container>
 </template>
 
@@ -249,6 +256,10 @@ import { getAllSubjects } from '@/data/subjects'
 
 const router = useRouter()
 const progressStore = useProgressStore()
+
+// 版本資訊 (從 Vite define 獲取)
+const appVersion = __APP_VERSION__
+const buildTime = __BUILD_TIME__
 
 // 科目數據
 const subjects = ref([])
