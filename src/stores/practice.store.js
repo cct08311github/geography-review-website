@@ -1,8 +1,40 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { checkAnswer, calculateTotalScore } from '@/utils/scoring-system'
 import { getRandomQuestions, shuffleQuestions } from '@/utils/question-generator'
 import { useQuestionStore } from './question.store'
+
+// Helper: Safe LocalStorage
+const storage = {
+  get(key) {
+    try {
+      const item = localStorage.getItem(key)
+      return item ? JSON.parse(item) : null
+    } catch (e) {
+      console.warn(`[PracticeStore] Failed to load ${key}:`, e)
+      return null
+    }
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+    } catch (e) {
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        console.error('[PracticeStore] Storage full! Cannot save data.', e)
+        // TODO: Implement cleanup strategy (e.g. remove oldest history)
+        throw new Error('儲存空間已滿，您的進度可能無法保存。請清理瀏覽器快取。')
+      }
+      console.warn(`[PracticeStore] Failed to save ${key}:`, e)
+    }
+  },
+  remove(key) {
+    try {
+      localStorage.removeItem(key)
+    } catch (e) {
+      console.warn(`[PracticeStore] Failed to remove ${key}:`, e)
+    }
+  }
+}
 
 // 生成唯一ID
 const generateSessionId = () => {
@@ -10,18 +42,25 @@ const generateSessionId = () => {
 }
 
 export const usePracticeStore = defineStore('practice', () => {
+  const questionStore = useQuestionStore()
+
   // ============ 狀態 ============
   const currentSession = ref(null)
   const sessionHistory = ref([])
-  const wrongQuestions = ref(new Map())
+  const wrongQuestions = ref(new Map()) // Key: questionId, Value: { count, lastWrong, subjectId }
   const isLoading = ref(false)
   const error = ref(null)
 
   // ============ Getters ============
-  const currentQuestion = computed(() => {
+  
+  // 動態還原題目物件 (Hydration)
+  const hydratedCurrentQuestion = computed(() => {
     if (!currentSession.value) return null
-    const idx = currentSession.value.currentQuestionIndex
-    return currentSession.value.questions[idx] || null
+    const qData = currentSession.value.questions[currentSession.value.currentQuestionIndex]
+    // session questions 現在只存 { id, ...metadata }，或者如果是舊資料可能存了完整物件
+    // 我們優先從 questionStore 抓最新資料
+    const fullQuestion = questionStore.getQuestionById(qData.id) || qData
+    return fullQuestion
   })
 
   const progress = computed(() => {
@@ -46,8 +85,6 @@ export const usePracticeStore = defineStore('practice', () => {
     error.value = null
 
     try {
-      const questionStore = useQuestionStore()
-      
       // 確保題目已加載
       await questionStore.loadQuestions(subjectId)
       
@@ -61,19 +98,24 @@ export const usePracticeStore = defineStore('practice', () => {
       // 打亂題目順序
       questions = shuffleQuestions(questions)
 
+      // 正規化：只存 ID 以節省空間，但為了前端方便，這裡暫時保留引用
+      // 重點是儲存到 localStorage 時要 stripped down
+      const sessionQuestions = questions.map(q => ({ id: q.id, subjectId: q.subjectId }))
+
       // 創建會話
       currentSession.value = {
         id: generateSessionId(),
         subjectId,
         mode,
         topicId,
-        questions,
+        questions: sessionQuestions,
         currentQuestionIndex: 0,
-        userAnswers: new Map(),
+        userAnswers: {}, // Map 不能直接 JSON.stringify，改用 Object
         startTime: new Date().toISOString(),
         completed: false
       }
-
+      
+      saveActiveSession()
       return currentSession.value
     } catch (e) {
       error.value = e.message
@@ -91,7 +133,21 @@ export const usePracticeStore = defineStore('practice', () => {
       throw new Error('沒有進行中的練習會話')
     }
 
-    const question = currentSession.value.questions.find(q => q.id === questionId)
+    // 考試模式下，我們只記錄答案，不評分
+    if (currentSession.value.mode === 'exam') {
+        // 更新用戶答案
+        currentSession.value.userAnswers[questionId] = {
+            userAnswer,
+            result: null // 尚未評分
+        }
+        saveActiveSession()
+        return { isCorrect: null } // 不回傳結果
+    }
+
+    // --- 以下為練習模式 (Practice Mode) ---
+
+    // 從 Store 獲取完整題目資訊來檢查答案
+    const question = questionStore.getQuestionById(questionId)
     if (!question) {
       throw new Error('題目不存在')
     }
@@ -100,141 +156,166 @@ export const usePracticeStore = defineStore('practice', () => {
     const result = checkAnswer(question, userAnswer)
 
     // 記錄用戶答案
-    currentSession.value.userAnswers.set(questionId, {
+    currentSession.value.userAnswers[questionId] = {
       userAnswer,
       result
-    })
+    }
 
-    // 如果錯誤，記錄到錯題本
+    // 如果錯誤，記錄到錯題本 (正規化儲存)
     if (!result.isCorrect) {
       const existing = wrongQuestions.value.get(questionId) || { count: 0, lastWrong: null }
       wrongQuestions.value.set(questionId, {
+        id: questionId,
+        subjectId: question.subjectId,
         count: existing.count + 1,
-        lastWrong: new Date().toISOString(),
-        question
+        lastWrong: new Date().toISOString()
       })
-      
-      // 保存到本地存儲
       saveWrongQuestions()
     }
-
+    
+    saveActiveSession()
     return result
   }
 
-  /**
-   * 下一題
-   */
   function nextQuestion() {
     if (!hasNextQuestion.value) return false
     currentSession.value.currentQuestionIndex++
+    saveActiveSession()
     return true
   }
 
-  /**
-   * 上一題
-   */
   function previousQuestion() {
     if (currentSession.value.currentQuestionIndex <= 0) return false
     currentSession.value.currentQuestionIndex--
+    saveActiveSession()
     return true
   }
 
-  /**
-   * 跳轉到指定題目
-   */
   function goToQuestion(index) {
     if (index < 0 || index >= currentSession.value.questions.length) return false
     currentSession.value.currentQuestionIndex = index
+    saveActiveSession()
     return true
   }
 
-  /**
-   * 結束練習會話
-   */
   async function endPracticeSession() {
-    if (!currentSession.value) {
-      throw new Error('沒有進行中的練習會話')
-    }
+    if (!currentSession.value) return
 
-    // 計算結果
+    const isExamMode = currentSession.value.mode === 'exam'
     const results = []
-    currentSession.value.userAnswers.forEach((answerData, questionId) => {
-      results.push(answerData.result)
-    })
+    const userAnswers = currentSession.value.userAnswers
+    
+    // 如果是考試模式，現在才進行評分
+    if (isExamMode) {
+        // 遍歷所有題目進行評分
+        currentSession.value.questions.forEach(qMeta => {
+            const questionId = qMeta.id
+            const answerData = userAnswers[questionId]
+            
+            // 獲取完整題目
+            const fullQuestion = questionStore.getQuestionById(questionId)
+            if (!fullQuestion) {
+                // Should not happen if loaded correctly
+                results.push({ isCorrect: false, score: 0 })
+                return
+            }
 
-    // 處理未回答的題目（視為錯誤）
-    const answeredCount = results.length
-    const totalQuestions = currentSession.value.questions.length
-    for (let i = answeredCount; i < totalQuestions; i++) {
-      results.push({ isCorrect: false, score: 0 })
+            let result
+            if (answerData && answerData.userAnswer !== undefined && answerData.userAnswer !== null) {
+                result = checkAnswer(fullQuestion, answerData.userAnswer)
+                
+                // 記錄錯題
+                if (!result.isCorrect) {
+                    const existing = wrongQuestions.value.get(questionId) || { count: 0, lastWrong: null }
+                    wrongQuestions.value.set(questionId, {
+                        id: questionId,
+                        subjectId: fullQuestion.subjectId,
+                        count: existing.count + 1,
+                        lastWrong: new Date().toISOString()
+                    })
+                }
+            } else {
+                // 未作答
+                result = { isCorrect: false, score: 0, unAnswered: true }
+            }
+            results.push(result)
+        })
+        
+        // 考試模式下，一次性保存錯題
+        saveWrongQuestions()
+    } else {
+        // 練習模式：直接收集已評分的結果
+        Object.keys(userAnswers).forEach(qid => {
+            results.push(userAnswers[qid].result)
+        })
+        // 處理練習模式未回答（邏輯保持不變）
+        const answeredCount = results.length
+        const totalQuestions = currentSession.value.questions.length
+        for (let i = answeredCount; i < totalQuestions; i++) {
+            results.push({ isCorrect: false, score: 0 })
+        }
     }
 
     const totalScore = calculateTotalScore(results)
-
-    // 構建最終結果
+    
     const finalResult = {
       sessionId: currentSession.value.id,
       subjectId: currentSession.value.subjectId,
       mode: currentSession.value.mode,
-      totalQuestions,
+      totalQuestions: currentSession.value.questions.length,
       correctAnswers: totalScore.correctAnswers,
       score: totalScore.score,
       wrongAnswers: totalScore.wrongAnswers,
       timeSpent: new Date() - new Date(currentSession.value.startTime),
-      wrongQuestionIds: Array.from(wrongQuestions.value.keys()).slice(-totalScore.wrongAnswers),
+      wrongQuestionIds: Array.from(wrongQuestions.value.keys()).slice(-totalScore.wrongAnswers), // 這裡只是示意，實際可能不準確
       completedAt: new Date().toISOString()
     }
 
-    // 保存到歷史記錄
     sessionHistory.value.unshift(finalResult)
     saveSessionHistory()
 
-    // 清理當前會話
-    currentSession.value.completed = true
+    // 清理
     currentSession.value = null
+    storage.remove('active_session')
 
     return finalResult
   }
 
   /**
-   * 獲取錯題列表
+   * 獲取錯題列表 (Hydrated)
    */
   function getWrongQuestions(subjectId = null, limit = 20) {
     const questions = []
+    
+    // 確保題庫已加載 (如果尚未加載可能取不到資料，這是一個潛在的非同步問題)
+    // 在UI層調用此方法前，應確保 loadQuestions 已執行
+    
     wrongQuestions.value.forEach((data, questionId) => {
-      if (!subjectId || data.question.subjectId === subjectId) {
-        questions.push({
-          id: questionId,
-          ...data
-        })
+      if (!subjectId || data.subjectId === subjectId) {
+        const fullQuestion = questionStore.getQuestionById(questionId)
+        if (fullQuestion) {
+             questions.push({
+                ...fullQuestion,
+                ...data // merge metadata (count, lastWrong)
+             })
+        }
       }
     })
     
-    // 按錯誤次數排序
     questions.sort((a, b) => b.count - a.count)
-    
     return questions.slice(0, limit)
   }
 
-  /**
-   * 標記錯題為已掌握
-   */
   function markQuestionMastered(questionId) {
     wrongQuestions.value.delete(questionId)
     saveWrongQuestions()
   }
 
-  /**
-   * 清除所有錯題
-   */
   function clearWrongQuestions() {
     wrongQuestions.value.clear()
     saveWrongQuestions()
   }
-
-  /**
-   * 獲取練習歷史
-   */
+  
   function getPracticeHistory(subjectId = null, limit = 10) {
     let history = sessionHistory.value
     if (subjectId) {
@@ -243,93 +324,64 @@ export const usePracticeStore = defineStore('practice', () => {
     return history.slice(0, limit)
   }
 
-  // ============ 本地存儲 ============
+  // ============ Persistence Logic ============
   
-  function saveSessionHistory() {
-    try {
-      const data = sessionHistory.value.map(h => ({
-        ...h,
-        userAnswers: undefined,
-        questions: undefined
-      }))
-      localStorage.setItem('practice_history', JSON.stringify(data))
-    } catch (e) {
-      console.error('保存練習歷史失敗:', e)
-    }
+  function saveActiveSession() {
+      if (currentSession.value) {
+          storage.set('active_session', currentSession.value)
+      }
   }
 
-  function loadSessionHistory() {
-    try {
-      const data = localStorage.getItem('practice_history')
-      if (data) {
-        sessionHistory.value = JSON.parse(data)
-      }
-    } catch (e) {
-      console.error('載入練習歷史失敗:', e)
-    }
+  function saveSessionHistory() {
+      // 歷史記錄不需要存完整題目，只存統計
+      storage.set('practice_history', sessionHistory.value)
   }
 
   function saveWrongQuestions() {
-    try {
+      // Map 轉 Object 儲存，且只存 metadata
       const data = {}
-      wrongQuestions.value.forEach((value, key) => {
-        data[key] = {
-          count: value.count,
-          lastWrong: value.lastWrong,
-          question: {
-            id: value.question.id,
-            subjectId: value.question.subjectId,
-            topicId: value.question.topicId,
-            type: value.question.type,
-            question: value.question.question,
-            options: value.question.options,
-            answer: value.question.answer,
-            explanation: value.question.explanation,
-            difficulty: value.question.difficulty
-          }
-        }
+      wrongQuestions.value.forEach((val, key) => {
+          data[key] = val
       })
-      localStorage.setItem('wrong_questions', JSON.stringify(data))
-    } catch (e) {
-      console.error('保存錯題失敗:', e)
-    }
+      storage.set('wrong_questions', data)
   }
 
-  function loadWrongQuestions() {
-    try {
-      const data = localStorage.getItem('wrong_questions')
-      if (data) {
-        const parsed = JSON.parse(data)
-        wrongQuestions.value = new Map(Object.entries(parsed).map(([k, v]) => [Number(k), v]))
-      }
-    } catch (e) {
-      console.error('載入錯題失敗:', e)
-    }
-  }
-
-  // 初始化時載入數據
+  // ============ Init ============
   function init() {
-    loadSessionHistory()
-    loadWrongQuestions()
+    // 1. Load History
+    const history = storage.get('practice_history')
+    if (history) sessionHistory.value = history
+
+    // 2. Load Wrong Questions
+    const wrong = storage.get('wrong_questions')
+    if (wrong) {
+        // Object -> Map
+        wrongQuestions.value = new Map(Object.entries(wrong).map(([k, v]) => [Number(k), v]))
+    }
+
+    // 3. Restore Active Session
+    const active = storage.get('active_session')
+    if (active) {
+        // 恢復時需要確認是否過期？暫時不檢查
+        currentSession.value = active
+    }
   }
 
-  // ============ 初始化 ============
+  // 自動執行初始化
   init()
 
   return {
-    // 狀態
     currentSession,
     sessionHistory,
     wrongQuestions,
     isLoading,
     error,
     
-    // Getters
-    currentQuestion,
+    // Exposed Getters
+    currentQuestion: hydratedCurrentQuestion, // Use the hydrated version
     progress,
     hasNextQuestion,
     
-    // Actions
     startPracticeSession,
     submitAnswer,
     nextQuestion,

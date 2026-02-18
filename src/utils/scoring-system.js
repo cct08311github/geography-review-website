@@ -89,25 +89,38 @@ function checkTrueFalseAnswer(correctAnswer, userAnswer) {
 
 /**
  * 檢查配對題答案
+ * 改進邏輯：不依賴順序，支援雙向配對檢查
  */
 function checkMatchingAnswer(correctAnswer, userAnswer) {
   // correctAnswer 格式: [[0, 1], [1, 2], [2, 3]]
-  // 表示 0->1, 1->2, 2->3 配對
   
   const correct = Array.isArray(correctAnswer) ? correctAnswer : []
   const user = Array.isArray(userAnswer) ? userAnswer : []
   
-  // 檢查每個配對是否正確
+  // 如果數量不對，直接算錯（或部分給分，這裡先嚴格）
+  if (!user || user.length === 0) {
+      return { isCorrect: false, correctAnswer: correct, userAnswer: user, score: 0 }
+  }
+
   let correctPairs = 0
-  correct.forEach((pair, index) => {
-    const userPair = user[index]
-    if (userPair && userPair[0] === pair[0] && userPair[1] === pair[1]) {
-      correctPairs++
-    }
+  
+  // 建立正確答案的 Set，方便查找
+  // 格式化為字串 "a-b" 進行比對
+  const correctSet = new Set(correct.map(pair => `${pair[0]}-${pair[1]}`))
+  
+  // 遍歷用戶答案
+  user.forEach(pair => {
+      if (Array.isArray(pair) && pair.length === 2) {
+          const key = `${pair[0]}-${pair[1]}`
+          if (correctSet.has(key)) {
+              correctPairs++
+          }
+      }
   })
   
-  const isCorrect = correctPairs === correct.length
-  const score = correct.length > 0 ? correctPairs / correct.length : 0
+  const totalPairs = correct.length
+  const isCorrect = correctPairs === totalPairs && user.length === totalPairs
+  const score = totalPairs > 0 ? correctPairs / totalPairs : 0
   
   return {
     isCorrect,

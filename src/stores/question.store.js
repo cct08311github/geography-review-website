@@ -1,15 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getAllSubjects, getSubjectById } from '@/data/subjects'
+import { getAllSubjects } from '@/data/subjects'
+import { mockQuestionService } from '@/services/mock-question.service'
 
-// 導入題庫數據
+// 導入真實題庫數據
 import { geographyQuizzes } from '@/data/quizzes'
 import { expandedGeographyQuizzes } from '@/data/expanded-geography-quizzes'
+import { capQuestions } from '@/data/cap' // 導入會考題庫
 
 export const useQuestionStore = defineStore('question', () => {
   // ============ 狀態 ============
   const questionBank = ref(new Map())
-  const subjectQuestions = ref({})
+  const subjectQuestions = ref({}) // Subject ID -> Array of Questions
   const isLoading = ref(false)
   const error = ref(null)
 
@@ -20,13 +22,16 @@ export const useQuestionStore = defineStore('question', () => {
     }
   })
 
-  // ============ 數據加載 ============
+  // ============ Actions ============
   
   /**
-   * 加載科目題目
+   * 加載科目題目 (Lazy Load)
    */
-  async function loadQuestions(subjectId) {
-    if (subjectQuestions.value[subjectId]) {
+  async function loadQuestions(rawSubjectId) {
+    const subjectId = Number(rawSubjectId)
+    
+    // 檢查快取：如果已經加載過該科目，直接返回
+    if (subjectQuestions.value[subjectId] && subjectQuestions.value[subjectId].length > 0) {
       return subjectQuestions.value[subjectId]
     }
 
@@ -39,68 +44,36 @@ export const useQuestionStore = defineStore('question', () => {
       // 根據科目加載對應題庫
       switch (subjectId) {
         case 1: // 國文
-          questions = generateMockQuestions(subjectId, 'chinese')
+          questions = capQuestions.chinese || []
           break
         case 2: // 英語
-          questions = generateMockQuestions(subjectId, 'english')
+          questions = capQuestions.english || []
           break
         case 3: // 數學
-          questions = generateMockQuestions(subjectId, 'math')
+          questions = capQuestions.math || []
           break
         case 4: // 自然
-          questions = generateMockQuestions(subjectId, 'science')
+          questions = capQuestions.science || []
           break
-        case 5: // 社會
-          // 使用真實的地理題庫
-          questions = []
-          
-          // 處理 geographyQuizzes（包含嵌套的questions數組）
-          geographyQuizzes.forEach(quiz => {
-            if (quiz.questions && Array.isArray(quiz.questions)) {
-              quiz.questions.forEach((q, qIdx) => {
-                questions.push({
-                  id: questions.length + 1,
-                  subjectId: 5,
-                  topicId: quiz.topicId || 1,
-                  type: q.type || 'single',
-                  question: q.question,
-                  options: q.options || [],
-                  answer: q.correctAnswer !== undefined ? q.correctAnswer : (Array.isArray(q.correctAnswers) ? q.correctAnswers[0] : 0),
-                  explanation: q.explanation || '請參考相關教材',
-                  difficulty: quiz.difficulty || 'medium',
-                  tags: quiz.tags || []
-                })
-              })
-            }
-          })
-          
-          // 處理 expandedGeographyQuizzes（已經是扁平結構）
-          expandedGeographyQuizzes.forEach((q, idx) => {
-            questions.push({
-              id: questions.length + 1,
-              subjectId: 5,
-              topicId: q.topicId || 1,
-              type: q.type || 'single',
-              question: q.question,
-              options: q.options || [],
-              answer: q.correctAnswer !== undefined ? q.correctAnswer : (Array.isArray(q.correctAnswers) ? q.correctAnswers[0] : 0),
-              explanation: q.explanation || '請參考相關教材',
-              difficulty: q.difficulty || 'medium',
-              tags: q.tags || []
-            })
-          })
+        case 5: // 社會 (地理/歷史/公民) - 混合真實會考題與既有題庫
+          const geoQuestions = _loadGeographyQuestions()
+          const capSocialQuestions = capQuestions.social || []
+          questions = [...geoQuestions, ...capSocialQuestions]
           break
         default:
-          questions = generateMockQuestions(subjectId, 'default')
+          questions = mockQuestionService.generateQuestions(subjectId, 'default')
       }
 
-      // 確保每個題目有ID
+      // 確保每個題目有唯一ID (特別是 Mock Data)
+      // 真實專案中 ID 應來自後端，這裡為了 Mock 方便重新生成
+      // 注意：capQuestions 已經有固定 ID (112xxxx)，不要覆蓋它們
       questions = questions.map((q, idx) => ({
         ...q,
-        id: q.id || idx + 1
+        id: q.id || Number(`${subjectId}${idx + 1}`) // 只有沒有 ID 的才生成
       }))
 
       // 存儲到內存
+      // 為了效能，我們只在有人請求該科目時才放入 questionBank
       questions.forEach(q => {
         questionBank.value.set(q.id, q)
       })
@@ -108,11 +81,54 @@ export const useQuestionStore = defineStore('question', () => {
 
       return questions
     } catch (e) {
-      error.value = e.message
+      error.value = `加載題庫失敗: ${e.message}`
+      console.error(error.value)
       throw e
     } finally {
       isLoading.value = false
     }
+  }
+
+  // 私有輔助函數：加載地理題庫
+  function _loadGeographyQuestions() {
+    const questions = []
+    
+    // 1. 處理 geographyQuizzes（包含嵌套的questions數組）
+    geographyQuizzes.forEach(quiz => {
+      if (quiz.questions && Array.isArray(quiz.questions)) {
+        quiz.questions.forEach((q) => {
+          questions.push({
+            // Base properties
+            subjectId: 5,
+            topicId: quiz.topicId || 1,
+            type: q.type || 'single',
+            question: q.question,
+            options: q.options || [],
+            answer: q.correctAnswer !== undefined ? q.correctAnswer : (Array.isArray(q.correctAnswers) ? q.correctAnswers[0] : 0),
+            explanation: q.explanation || '請參考相關教材',
+            difficulty: quiz.difficulty || 'medium',
+            tags: quiz.tags || []
+          })
+        })
+      }
+    })
+    
+    // 2. 處理 expandedGeographyQuizzes（已經是扁平結構）
+    expandedGeographyQuizzes.forEach((q) => {
+      questions.push({
+        subjectId: 5,
+        topicId: q.topicId || 1,
+        type: q.type || 'single',
+        question: q.question,
+        options: q.options || [],
+        answer: q.correctAnswer !== undefined ? q.correctAnswer : (Array.isArray(q.correctAnswers) ? q.correctAnswers[0] : 0),
+        explanation: q.explanation || '請參考相關教材',
+        difficulty: q.difficulty || 'medium',
+        tags: q.tags || []
+      })
+    })
+
+    return questions
   }
 
   /**
@@ -121,12 +137,19 @@ export const useQuestionStore = defineStore('question', () => {
   function getRandomQuestions(subjectId, count = 10, topicId = null) {
     let questions = subjectQuestions.value[subjectId] || []
     
+    // 如果尚未加載，可能需要先調用 loadQuestions (但通常 UI 層會先調用)
+    if (questions.length === 0) {
+        console.warn(`[QuestionStore] Subject ${subjectId} not loaded yet. returning empty array.`)
+        return []
+    }
+
     // 按主題過濾
     if (topicId) {
       questions = questions.filter(q => q.topicId === topicId)
     }
 
     // 隨機選擇
+    // 使用 Fisher-Yates 洗牌算法更佳，但這裡先用簡單 sort
     const shuffled = [...questions].sort(() => Math.random() - 0.5)
     return shuffled.slice(0, Math.min(count, shuffled.length))
   }
@@ -154,99 +177,6 @@ export const useQuestionStore = defineStore('question', () => {
    */
   function getAllSubjectQuestions(subjectId) {
     return subjectQuestions.value[subjectId] || []
-  }
-
-  // ============ 模擬數據生成（臨時使用） ============
-  
-  function generateMockQuestions(subjectId, subjectCode) {
-    const subject = getSubjectById(subjectId)
-    if (!subject) return []
-
-    const questions = []
-    let questionId = 1
-
-    // 為每個主題生成題目
-    subject.topics.forEach((topic, topicIdx) => {
-      // 每個主題生成5-10題
-      const topicQuestionCount = 5 + Math.floor(Math.random() * 6)
-      
-      for (let i = 0; i < topicQuestionCount; i++) {
-        const difficulty = ['easy', 'medium', 'hard'][Math.floor(Math.random() * 3)]
-        
-        questions.push({
-          id: questionId++,
-          subjectId,
-          topicId: topic.id,
-          type: ['single', 'multiple', 'truefalse'][Math.floor(Math.random() * 3)],
-          question: generateQuestionText(subjectCode, topic, i + 1),
-          options: generateOptions(subjectCode, topic, i + 1),
-          answer: Math.floor(Math.random() * 4),
-          explanation: `這是第${i + 1}題的解析。${topic.name}是${subjectCode}學科的重要內容，請認真學習。`,
-          difficulty,
-          tags: [topic.name, subject.name]
-        })
-      }
-    })
-
-    return questions
-  }
-
-  function generateQuestionText(subjectCode, topic, num) {
-    const templates = {
-      chinese: [
-        `下列何者為「${topic.name}」的正確用法？`,
-        `關於「${topic.name}」，下列敘述何者正確？`,
-        `${topic.description}的相關知識，以下何者正確？`,
-        `「${topic.name}」的使用時機，下列何者正確？`
-      ],
-      english: [
-        `Which of the following is the correct usage of "${topic.name}"?`,
-        `Regarding "${topic.name}", which statement is correct?`,
-        `Choose the best answer for "${topic.name}" usage.`,
-        `What is the proper form of "${topic.name}"?`
-      ],
-      math: [
-        `已知條件，求${topic.name}的值為何？`,
-        `關於${topic.name}，下列計算何者正確？`,
-        `${topic.description}，正確的解法為何？`,
-        `計算${topic.name}，答案為何？`
-      ],
-      science: [
-        `關於${topic.name}的原理，下列何者正確？`,
-        `${topic.description}的相關知識，以下何者正確？`,
-        `有關${topic.name}的現象，解釋何者正確？`,
-        `${topic.name}的形成原因，下列何者正確？`
-      ],
-      default: [
-        `關於${topic.name}，下列敘述何者正確？`,
-        `${topic.description}的相關知識，以下何者正確？`,
-        `${topic.name}為本章節重點，請問下列何者正確？`,
-        `學習${topic.name}時，應注意哪些事項？`
-      ]
-    }
-
-    const templateList = templates[subjectCode] || templates.default
-    return templateList[num % templateList.length]
-  }
-
-  function generateOptions(subjectCode, topic, num) {
-    const templates = {
-      chinese: ['選項A', '選項B', '選項C', '選項D'],
-      english: ['Option A', 'Option B', 'Option C', 'Option D'],
-      math: ['甲', '乙', '丙', '丁'],
-      science: ['①', '②', '③', '④'],
-      default: ['選項一', '選項二', '選項三', '選項四']
-    }
-
-    const options = templates[subjectCode] || templates.default
-    
-    // 根據題目數量動態生成選項
-    return [
-      `${options[0]}：這是第一個選項的內容`,
-      `${options[1]}：這是第二個選項的內容`,
-      `${options[2]}：這是第三個選項的內容`,
-      `${options[3]}：這是第四個選項的內容`
-    ]
   }
 
   return {

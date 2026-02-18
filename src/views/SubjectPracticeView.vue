@@ -456,19 +456,28 @@ const startPractice = async (mode, topicId = null) => {
   practiceTopicId.value = topicId
   
   let questionCount = 10
+  let sessionMode = mode
+  
   if (mode === 'comprehensive') {
-    questionCount = 20
+    questionCount = 50 // 模擬考試題數較多
+    sessionMode = 'exam' // 切換為考試模式
   }
   
   try {
     await practiceStore.startPracticeSession({
       subjectId: Number(props.subjectId),
-      mode,
+      mode: sessionMode,
       topicId,
       questionCount
     })
     
-    // 重置答題狀態
+    // 如果是考試模式，導向專屬考試介面
+    if (sessionMode === 'exam') {
+        router.push({ name: 'exam-taking' })
+        return
+    }
+    
+    // 一般練習模式，留在本頁
     resetAnswerState()
   } catch (error) {
     console.error('開始練習失敗:', error)
